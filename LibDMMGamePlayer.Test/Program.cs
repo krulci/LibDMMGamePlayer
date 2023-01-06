@@ -18,23 +18,18 @@ namespace LibDMMGamePlayer.Test
                 .WriteTo.Console()
                 .CreateLogger();
 
-            IServiceCollection services = new ServiceCollection();
-            HttpClientHandler handler = new() { CookieContainer = new CookieContainer() { PerDomainCapacity = 50 }, AllowAutoRedirect = false };
-            services.AddHttpClient("DMMGamePlayer")
-                .ConfigurePrimaryHttpMessageHandler(() =>
+            IHost host = new HostBuilder()
+                .ConfigureServices(services =>
                 {
-                    return new HttpClientHandler()
+                    services.AddDMMGamePlayer();
+                    services.AddLogging(loggingBuilder =>
                     {
-                        AllowAutoRedirect = false,
-                        UseCookies = false
-                    };
-                });
-            services.AddLogging(loggingBuilder =>
-            {
-                loggingBuilder.AddSerilog(Log.Logger);
-            }); ;
-            IHttpClientFactory factory = services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>();
-            ILogger<LibDMMGamePlayer> logger = services.BuildServiceProvider().GetRequiredService<ILogger<LibDMMGamePlayer>>();
+                        loggingBuilder.AddSerilog(Log.Logger);
+                    });
+                })
+                .Build();
+            IHttpClientFactory factory = host.Services.GetRequiredService<IHttpClientFactory>();
+            ILogger<LibDMMGamePlayer> logger = host.Services.GetRequiredService<ILogger<LibDMMGamePlayer>>();
             LibDMMGamePlayer libDMMGamePlayer = new(factory, logger);
 
             string? loginUrl = await libDMMGamePlayer.GetTokenizedLoginUrl();
