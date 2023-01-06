@@ -16,8 +16,8 @@ namespace LibDMMGamePlayer
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger _logger;
-        private readonly string cookiesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "dmmgameplayer5\\Network\\Cookies");
-        private HttpClient? _client;
+        private readonly string cookieDbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "dmmgameplayer5\\Network\\Cookies");
+        private readonly HttpClient _client;
         public LibDMMGamePlayer(IHttpClientFactory httpClientFactory, ILogger<LibDMMGamePlayer> logger)
         {
             _httpClientFactory = httpClientFactory;
@@ -40,6 +40,8 @@ namespace LibDMMGamePlayer
             Uri? redirectUri;
             while (response.Headers.TryGetValues("set-cookie", out IEnumerable<string>? setCookieValues))
             {
+                if (response.RequestMessage == null) break;
+                if (response.RequestMessage.RequestUri == null) break;
                 Uri responseUri = response.RequestMessage.RequestUri;
                 CookieContainer cookieContainer = new();
                 foreach (string setCookieValue in setCookieValues)
@@ -59,6 +61,7 @@ namespace LibDMMGamePlayer
                     }
                 }
                 this.SaveCookies(cookies);
+                if (request.RequestUri == null) break;
                 if ((redirectUri = LibDMMGamePlayer.GetUriForRedirect(request.RequestUri, response)) != null)
                 {
                     response.Dispose();
@@ -121,6 +124,8 @@ namespace LibDMMGamePlayer
                 return result?["data"]?["execute_args"]?.ToString();
             }
         }
+
+        #region Private Methods
         private static string GenRandomHex()
         {
             // Convert the input string to a byte array and compute the hash.
@@ -166,7 +171,7 @@ namespace LibDMMGamePlayer
                 }
                 _logger.LogInformation("Successfully killed all processes locking cookie file");
             }
-            string connString = string.Format("Data Source={0}", cookiesPath);
+            string connString = string.Format("Data Source={0}", cookieDbPath);
             using SQLiteConnection db = new(connString);
             db.Open();
 
@@ -184,7 +189,7 @@ namespace LibDMMGamePlayer
         private CookieContainer LoadCookies()
         {
             CookieContainer container = new() { PerDomainCapacity = 50 };
-            string connString = string.Format("Data Source={0}", cookiesPath);
+            string connString = string.Format("Data Source={0}", cookieDbPath);
             using (SQLiteConnection db = new(connString))
             {
                 db.Open();
@@ -212,7 +217,7 @@ namespace LibDMMGamePlayer
 
             return container;
         }
-        private void AddHeadersWithCookies(HttpRequestMessage request, CookieContainer cookieSetters = null)
+        private void AddHeadersWithCookies(HttpRequestMessage request, CookieContainer? cookieSetters = null)
         {
             CookieContainer cookieContainer = LoadCookies();
             if (cookieSetters != null)
@@ -233,7 +238,7 @@ namespace LibDMMGamePlayer
             request.Headers.Add("Sec-Fetch-User", "?1");
             request.Headers.Add("Connection", "keep-alive");
             request.Headers.Add("Cookie",
-                string.Join("; ", cookieContainer.GetCookies(new Uri("https://" + request.RequestUri.Host))
+                string.Join("; ", cookieContainer.GetCookies(new Uri("https://" + request.RequestUri?.Host))
                 .OfType<Cookie>()
                 .Select(c => $"{c.Name}={c.Value}")));
         }
@@ -279,6 +284,7 @@ namespace LibDMMGamePlayer
 
             return location;
         }
+        #endregion
     }
     public static class ExtensionMethods
     {
