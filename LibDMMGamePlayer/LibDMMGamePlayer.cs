@@ -18,7 +18,7 @@ namespace LibDMMGamePlayer
         private readonly ILogger _logger;
         private readonly string cookieDbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "dmmgameplayer5\\Network\\Cookies");
         private readonly HttpClient _client;
-        public LibDMMGamePlayer(IHttpClientFactory httpClientFactory, ILogger<LibDMMGamePlayer> logger)
+        public LibDMMGamePlayer(IHttpClientFactory httpClientFactory, ILogger logger)
         {
             _httpClientFactory = httpClientFactory;
             _logger = logger;
